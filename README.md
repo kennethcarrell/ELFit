@@ -3,7 +3,7 @@ Echelle Line Fitting GUI
 
 ## Example usage in example.py file
 
-####Todo:
+#### Todo:
 - [x] Add VHELIO to output
 - [ ] Goodness selection for save button
 - [ ] Line shape calculation (skewness & kurtosis)
