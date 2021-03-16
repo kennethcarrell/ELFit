@@ -7,7 +7,7 @@ from astropy.modeling import models, fitting
 from astropy.nddata import VarianceUncertainty
 from specutils.analysis import centroid, equivalent_width
 from specutils.spectra import Spectrum1D, SpectralRegion
-from specutils.fitting import fit_generic_continuum
+#from specutils.fitting import fit_generic_continuum
 from astropy import units as u
 import tkinter
 import tkinter.ttk
@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 #warnings.simplefilter('ignore', UserWarning)
 #warnings.simplefilter('ignore', category=AstropyWarning)
+from ELFit.line_analysis import *
 
 ## Values for the 107" Coude
 _NUMAPS_ = 54
@@ -30,6 +31,10 @@ class LineFitGUI:
         self.VHELIO = []
         self.residual = 0.
         self.nsteps = 0
+        self.halfmax = 0.
+        self.emax = 0.
+        self.fwhm = 0.
+        self.fwem = 0.
         self.apStart = np.zeros(_NUMAPS_)
         self.apStep = np.zeros(_NUMAPS_*2+1)
         self.WAVE = np.zeros((_NUMAPS_,_NPIXELS_))
@@ -66,7 +71,6 @@ class LineFitGUI:
 
         self.appLabel = tkinter.Label(self.plotFrame, text="Aperture")
         self.appLabel.grid(row = 2, column = 4)
-        #self.apertures = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53]
         self.apertures = [*range(_NUMAPS_)]
         self.apVal = tkinter.IntVar(self.plotFrame)
         self.apVal.set(self.apertures[0])
@@ -137,35 +141,66 @@ class LineFitGUI:
         self.inteqwErr = tkinter.Entry(self.plotFrame,width=10)
         self.inteqwErr.grid(row = 10, column = 4)
 
+        self.skewLabel = tkinter.Label(self.plotFrame, text="Skewness")
+        self.skewLabel.grid(row = 11, column = 0)
+        self.skewValue = tkinter.Entry(self.plotFrame, width=10)
+        self.skewValue.grid(row = 12, column = 0)
+        self.skewError = tkinter.Entry(self.plotFrame, width=10)
+        self.skewError.grid(row = 13, column = 0)
+
+        self.kurtLabel = tkinter.Label(self.plotFrame, text="Kurtosis")
+        self.kurtLabel.grid(row = 11, column = 1)
+        self.kurtValue = tkinter.Entry(self.plotFrame, width=10)
+        self.kurtValue.grid(row = 12, column = 1)
+        self.kurtError = tkinter.Entry(self.plotFrame, width=10)
+        self.kurtError.grid(row = 13, column = 1)
+
+        self.fwhmLabel = tkinter.Label(self.plotFrame, text="FWHM")
+        self.fwhmLabel.grid(row = 11, column = 3)
+        self.fwemLabel = tkinter.Label(self.plotFrame, text="FWEM")
+        self.fwemLabel.grid(row = 11, column = 4)
+        self.leftLabel = tkinter.Label(self.plotFrame, text="Left")
+        self.leftLabel.grid(row = 12, column = 2, sticky=tkinter.E)
+        self.rightLabel = tkinter.Label(self.plotFrame, text="Right")
+        self.rightLabel.grid(row = 13, column = 2, sticky=tkinter.E)
+        self.leftFWHM = tkinter.Entry(self.plotFrame, width=10)
+        self.leftFWHM.grid(row = 12, column = 3)
+        self.rightFWHM = tkinter.Entry(self.plotFrame, width=10)
+        self.rightFWHM.grid(row = 13, column = 3)
+        self.leftFWEM = tkinter.Entry(self.plotFrame, width=10)
+        self.leftFWEM.grid(row = 12, column = 4)
+        self.rightFWEM = tkinter.Entry(self.plotFrame, width=10)
+        self.rightFWEM.grid(row = 13, column = 4)
+
         self.figLine, self.figLAx = plt.subplots(figsize=(8,6))
         self.canLine = FigureCanvasTkAgg(self.figLine, self.plotFrame)
-        self.canLine.get_tk_widget().grid(row = 11, column = 0, columnspan=5)
+        self.canLine.get_tk_widget().grid(row = 14, column = 0, columnspan=5)
 
         self.lowRangeLabel = tkinter.Label(self.plotFrame, text="Plot Left:")
-        self.lowRangeLabel.grid(row = 12, column = 0)
+        self.lowRangeLabel.grid(row = 15, column = 0)
         self.lowRange = tkinter.Entry(self.plotFrame,width=10)
-        self.lowRange.grid(row = 12, column = 1)
+        self.lowRange.grid(row = 15, column = 1)
 
         self.highRangeLabel = tkinter.Label(self.plotFrame, text="Plot Right:")
-        self.highRangeLabel.grid(row = 12, column = 2)
+        self.highRangeLabel.grid(row = 15, column = 2)
         self.highRange = tkinter.Entry(self.plotFrame,width=10)
-        self.highRange.grid(row = 12, column = 3)
+        self.highRange.grid(row = 15, column = 3)
 
         self.plotMinLabel = tkinter.Label(self.plotFrame, text="Plot Min:")
-        self.plotMinLabel.grid(row = 13, column = 0)
+        self.plotMinLabel.grid(row = 16, column = 0)
         self.plotMin = tkinter.Entry(self.plotFrame,width=10)
-        self.plotMin.grid(row = 13, column = 1)
+        self.plotMin.grid(row = 16, column = 1)
 
         self.plotMaxLabel = tkinter.Label(self.plotFrame, text="Plot Max:")
-        self.plotMaxLabel.grid(row = 13, column = 2)
+        self.plotMaxLabel.grid(row = 16, column = 2)
         self.plotMax = tkinter.Entry(self.plotFrame,width=10)
-        self.plotMax.grid(row = 13, column = 3)
+        self.plotMax.grid(row = 16, column = 3)
 
         self.residualLabel = tkinter.Label(self.plotFrame, text="Residual:")
-        self.residualLabel.grid(row = 12, column = 4)
+        self.residualLabel.grid(row = 15, column = 4)
 
         self.savePlotButton = tkinter.Button(self.plotFrame, text="Save Plot", fg="green", command=self.savePlot)
-        self.savePlotButton.grid(row = 13, column = 4)
+        self.savePlotButton.grid(row = 16, column = 4)
 
         self.plotFrame.pack(side="left")
         self.aperlistbox = tkinter.Listbox(self.master,fg="gray",font="TkFixedFont",width=30)
@@ -219,8 +254,7 @@ class LineFitGUI:
         HIGH = float(self.highRange.get())
         # fit continuum in window +/- 5 angstroms
         mask = (self.WAVE[APER] > LOW-5.) & (self.WAVE[APER] < HIGH+5.)
-        spec = Spectrum1D(flux=self.FLUX[APER][mask]*u.dimensionless_unscaled, spectral_axis=self.WAVE[APER][mask]*u.AA, uncertainty=VarianceUncertainty(self.SIGMA[APER][mask]*u.dimensionless_unscaled))
-        bkgrfit = fit_generic_continuum(spec)
+        bkgrfit = getBkgr(self.WAVE[APER][mask],self.FLUX[APER][mask],self.SIGMA[APER][mask])
         mask = (self.WAVE[APER] > LOW) & (self.WAVE[APER] < HIGH)
         self.CONTWAVE = self.WAVE[APER][mask]
         ycont = bkgrfit(self.CONTWAVE*u.AA)
@@ -248,61 +282,77 @@ class LineFitGUI:
         except:
             LWIN = float(self.lowRange.get())
             HWIN = float(self.highRange.get())
+        try:
+            BOT = float(self.plotMin.get())
+        except:
+            BOT = 0.0
+
         self.contiFit()
-        # find centroid and equivalent width in window
-        spec = Spectrum1D(flux=self.CONTFLUX*u.dimensionless_unscaled, spectral_axis=self.CONTWAVE*u.AA, uncertainty=VarianceUncertainty(self.CONTSIGMA*u.dimensionless_unscaled))
-        self.centroid.delete(0, tkinter.END)
-        self.centroid.insert(0, "%.4f"%(centroid(spec, SpectralRegion(LWIN*u.AA, HWIN*u.AA))/u.AA))
-        self.eqwidth.delete(0, tkinter.END)
-        self.eqwidth.insert(0, "%.6f"%(equivalent_width(spec, regions=SpectralRegion(LWIN*u.AA, HWIN*u.AA))/u.AA))
 
         # fit line with a Gaussian profile
-        model_line = models.Const1D(CONTI) + models.Gaussian1D(amplitude=DEPTH, mean=MEAN, stddev=STDDEV)
-        fitter_line = fitting.LevMarLSQFitter()
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            bestfit_line = fitter_line(model_line,self.CONTWAVE,self.CONTFLUX,weights=1./self.CONTSIGMA)
-        try:
-            cov_diag = np.diag(fitter_line.fit_info['param_cov'])
-        except:
-            cov_diag = np.empty(4)*np.nan
+        fmean, fmeanErr, fdepth, fdepthErr, fwidth, fwidthErr, fconti, fcontiErr, self.residual = fitLine(CONTI,DEPTH,MEAN,STDDEV,self.CONTWAVE,self.CONTFLUX,self.CONTSIGMA)
         # update values in boxes
         self.fitMean.delete(0, tkinter.END)
-        self.fitMean.insert(0, "%.4f"%(bestfit_line.mean_1.value))
+        self.fitMean.insert(0, "%.4f"%(fmean))
         self.meanErr.delete(0, tkinter.END)
-        self.meanErr.insert(0, "%.4f"%(np.sqrt(cov_diag[2])))
+        self.meanErr.insert(0, "%.4f"%(fmeanErr))
         self.fitDepth.delete(0, tkinter.END)
-        self.fitDepth.insert(0, "%.6f"%(bestfit_line.amplitude_1.value))
+        self.fitDepth.insert(0, "%.6f"%(fdepth))
         self.depthErr.delete(0, tkinter.END)
-        self.depthErr.insert(0, "%.6f"%(np.sqrt(cov_diag[1])))
+        self.depthErr.insert(0, "%.6f"%(fdepthErr))
         self.fitWidth.delete(0, tkinter.END)
-        self.fitWidth.insert(0, "%.6f"%(bestfit_line.stddev_1.value))
+        self.fitWidth.insert(0, "%.6f"%(fwidth))
         self.widthErr.delete(0, tkinter.END)
-        self.widthErr.insert(0, "%.6f"%(np.sqrt(cov_diag[3])))
+        self.widthErr.insert(0, "%.6f"%(fwidthErr))
         self.continuum.delete(0, tkinter.END)
-        self.continuum.insert(0, "%.6f"%(bestfit_line.amplitude_0.value))
+        self.continuum.insert(0, "%.6f"%(fconti))
         self.contErr.delete(0, tkinter.END)
-        self.contErr.insert(0, "%.6f"%(np.sqrt(cov_diag[0])))
+        self.contErr.insert(0, "%.6f"%(fcontiErr))
         # calculate the equivalent width from the continuum fit
         sumeqw = 0.0
-        conti = bestfit_line.amplitude_0.value
         for i in range(len(self.CONTWAVE)):
             if( (self.CONTWAVE[i] > LWIN) & (self.CONTWAVE[i] < HWIN) ):
-                sumeqw += (conti-self.CONTFLUX[i])/conti*(self.CONTWAVE[i]-self.CONTWAVE[i-1])
+                sumeqw += (fconti-self.CONTFLUX[i])/fconti*(self.CONTWAVE[i]-self.CONTWAVE[i-1])
         self.calceqw.delete(0, tkinter.END)
         self.calceqw.insert(0, "%.6f"%(sumeqw))
         # calculate equivalent width from Gaussian integral
-        integral = -1.0 / float(self.continuum.get()) * float(self.fitDepth.get()) * float(self.fitWidth.get()) * np.sqrt(2.0*np.pi)
+        integral = -1.0 / fconti * fdepth * fwidth * np.sqrt(2.0*np.pi)
         self.inteqw.delete(0, tkinter.END)
         self.inteqw.insert(0, "%.6f"%(integral))
-        errorew = integral * np.sqrt( np.power(float(self.depthErr.get())/float(self.fitDepth.get()),2.0) +
-                                          np.power(float(self.widthErr.get())/float(self.fitWidth.get()),2.0) )
+        errorew = integral * np.sqrt( np.power(fdepthErr/fdepth,2.0) +
+                                          np.power(fwidthErr/fwidth,2.0) )
         self.inteqwErr.delete(0, tkinter.END)
         self.inteqwErr.insert(0, "%.6f"%(errorew))
+
         # calculate the residual of the fit
-        self.residual = np.sum( self.CONTSIGMA*(self.CONTFLUX - bestfit_line(self.CONTWAVE))**2 )
         self.residualLabel['text'] = "Residual:\n%.6f"%(self.residual)
+
+        self.halfmax = self.fwhm = self.emax = self.fwem = 0.
+        ## find centroid and equivalent width in window
+        center,eqw,self.halfmax,self.fwhm,lhm,rhm,self.emax,self.fwem,lem,rem,lskew,lskewErr,lkurt,lkurtErr = lineMeasure(self.CONTWAVE,self.CONTFLUX,self.CONTSIGMA,LWIN,HWIN,fconti,BOT)
+        self.centroid.delete(0, tkinter.END)
+        self.centroid.insert(0, "%.4f"%(center))
+        self.eqwidth.delete(0, tkinter.END)
+        self.eqwidth.insert(0, "%.6f"%(eqw))
+        self.leftFWHM.delete(0, tkinter.END)
+        self.leftFWHM.insert(0, "%.6f"%(lhm))
+        self.rightFWHM.delete(0, tkinter.END)
+        self.rightFWHM.insert(0, "%.6f"%(rhm))
+        self.leftFWEM.delete(0, tkinter.END)
+        self.leftFWEM.insert(0, "%.6f"%(lem))
+        self.rightFWEM.delete(0, tkinter.END)
+        self.rightFWEM.insert(0, "%.6f"%(rem))
+        self.skewValue.delete(0, tkinter.END)
+        self.skewValue.insert(0, "%.6f"%(lskew))
+        self.skewError.delete(0, tkinter.END)
+        self.skewError.insert(0, "%.6f"%(lskewErr))
+        self.kurtValue.delete(0, tkinter.END)
+        self.kurtValue.insert(0, "%.6f"%(lkurt))
+        self.kurtError.delete(0, tkinter.END)
+        self.kurtError.insert(0, "%.6f"%(lkurtErr))
+
         self.updatePlot()
+
 
     # update the plot in the GUI
     def updatePlot(self):
@@ -343,7 +393,18 @@ class LineFitGUI:
         except:
             TOP = 1.2
             BOTTOM = 0.0
-
+        try:
+            TMP = float(self.leftFWHM.get())
+            FWL = float(self.centroid.get()) - TMP*self.fwhm
+            TMP = float(self.rightFWHM.get())
+            FWR = float(self.centroid.get()) + TMP*self.fwhm
+            TMP = float(self.leftFWEM.get())
+            EWL = float(self.centroid.get()) - TMP*self.fwem
+            TMP = float(self.rightFWEM.get())
+            EWR = float(self.centroid.get()) + TMP*self.fwem
+        except:
+            FWL = FWR = EWL = EWR = 0.
+ 
         model_line = models.Const1D(CONTI) + models.Gaussian1D(amplitude=DEPTH, mean=MEAN, stddev=STDDEV)
         # fit continuum and plot data
         self.contiFit()
@@ -355,15 +416,18 @@ class LineFitGUI:
         self.figLAx.axvline(x=HWIN,linewidth=4,color='gray',alpha=0.5)
         # fitted line
         self.figLAx.plot(self.CONTWAVE,model_line(self.CONTWAVE),linewidth=2)
+        #
+        self.figLAx.plot([FWL,FWR],[self.halfmax,self.halfmax],'r-')
+        self.figLAx.plot([EWL,EWR],[self.emax,self.emax],'b-')
         self.figLAx.grid()
         self.figLAx.set_xlim(LOW,HIGH)
         self.figLAx.set_ylim(BOTTOM,TOP)
         self.canLine = FigureCanvasTkAgg(self.figLine, self.plotFrame)
-        self.canLine.get_tk_widget().grid(row = 11, column = 0, columnspan=5)
+        self.canLine.get_tk_widget().grid(row = 14, column = 0, columnspan=5)
 
     # put output in a file
     def saveLine(self):
-        self.FOUT.write("%s %s %f %f %d %.4f %.6f %.6f %.6f %.6f %.4f %.6f %.6f %.6f %.6f %.6f %.6f\n"%
+        self.FOUT.write("%s %s %f %f %d %.4f %.6f %.6f %.6f %.6f %.4f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n"%
                             (self.FILENAME, self.NAME, self.HJD, self.VHELIO, np.int8(self.apVal.get()),
                             np.float32(self.centroid.get()), np.float32(self.eqwidth.get()),
                             np.float32(self.calceqw.get()),
@@ -371,6 +435,12 @@ class LineFitGUI:
                             np.float32(self.fitMean.get()), np.float32(self.meanErr.get()),
                             np.float32(self.fitWidth.get()), np.float32(self.widthErr.get()),
                             np.float32(self.fitDepth.get()), np.float32(self.depthErr.get()),
+                            np.float32(self.skewValue.get()), np.float32(self.skewError.get()),
+                            np.float32(self.kurtValue.get()), np.float32(self.kurtError.get()),
+                            self.fwhm, self.halfmax,
+                            self.fwem, self.emax,
+                            np.float32(self.leftFWHM.get()), np.float32(self.rightFWHM.get()),
+                            np.float32(self.leftFWEM.get()), np.float32(self.rightFWEM.get()),
                             self.residual))
         self.FOUT.flush()
         os.fsync(self.FOUT.fileno())
