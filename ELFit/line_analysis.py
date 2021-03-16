@@ -18,10 +18,13 @@ def getBkgr(wave,flux,sigma):
 
 def lineMeasure(wave,flux,sigma,LWIN,HWIN,CONT,BOT):
     # find centroid and equivalent width in window
-    spec = Spectrum1D(flux=(1.0-flux)*u.dimensionless_unscaled, spectral_axis=wave*u.AA, uncertainty=VarianceUncertainty(sigma*u.dimensionless_unscaled))
     specregion = SpectralRegion(LWIN*u.AA, HWIN*u.AA)
+
+    spec = Spectrum1D(flux=(1.0-flux)*u.dimensionless_unscaled, spectral_axis=wave*u.AA, uncertainty=VarianceUncertainty(sigma*u.dimensionless_unscaled))
     center = centroid(spec, specregion)/u.AA
-    eqwidth = equivalent_width(spec, regions=specregion)/u.AA
+
+    spec2 = Spectrum1D(flux=flux*u.dimensionless_unscaled, spectral_axis=wave*u.AA, uncertainty=VarianceUncertainty(sigma*u.dimensionless_unscaled))    
+    eqwidth = equivalent_width(spec2, regions=specregion)/u.AA
     peak = np.interp(center,wave,flux)
     halfmax = 1.0 - (1.0 - peak)/2.0
     #emax = 1.0 - (1.0 - peak)/np.e
