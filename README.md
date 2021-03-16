@@ -5,8 +5,8 @@ Echelle Line Fitting GUI
 
 #### Todo:
 - [x] Add VHELIO to output
-- [ ] Goodness selection for save button
+- [x] Goodness selection for save button
 - [x] Line shape calculation (skewness & kurtosis)
-- [ ] Global minimum by changing input parameters
+- [x] Global minimum by changing input parameters
 - [ ] cosmic ray "removal"
 - [ ] Residual plot above line
