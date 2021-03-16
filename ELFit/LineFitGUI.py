@@ -35,6 +35,7 @@ class LineFitGUI:
         self.emax = 0.
         self.fwhm = 0.
         self.fwem = 0.
+        self.saveType = tkinter.StringVar()
         self.apStart = np.zeros(_NUMAPS_)
         self.apStep = np.zeros(_NUMAPS_*2+1)
         self.WAVE = np.zeros((_NUMAPS_,_NPIXELS_))
@@ -56,7 +57,10 @@ class LineFitGUI:
         self.sNAMELabel = tkinter.Label(self.plotFrame, text="Name: ")
         self.sNAMELabel.grid(row = 0, column = 1)
 
-        self.saveButton = tkinter.Button(self.plotFrame, text="Save This Line", fg="green", command=self.saveLine)
+        self.saveOptions = ["Save This Line", "Good", "Maybe", "BAD"]
+        self.saveType.set(self.saveOptions[0])
+        self.saveButton = tkinter.OptionMenu(self.plotFrame,self.saveType,*self.saveOptions,command=self.doSave)
+        self.saveButton['menu'].insert_separator(1)
         self.saveButton.grid(row = 0, column = 2)
 
         self.updateButton = tkinter.Button(self.plotFrame, text="Update Plot", fg="red", command=self.updatePlot)
@@ -425,10 +429,20 @@ class LineFitGUI:
         self.canLine = FigureCanvasTkAgg(self.figLine, self.plotFrame)
         self.canLine.get_tk_widget().grid(row = 14, column = 0, columnspan=5)
 
+    def doSave(self,stype):
+        if(stype == "Good"):
+            self.saveLine(0)
+        if(stype == "Maybe"):
+            self.saveLine(1)
+        if(stype == "BAD"):
+            self.saveLine(2)
+        self.saveType.set(self.saveOptions[0])
+        return
+
     # put output in a file
-    def saveLine(self):
-        self.FOUT.write("%s %s %f %f %d %.4f %.6f %.6f %.6f %.6f %.4f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n"%
-                            (self.FILENAME, self.NAME, self.HJD, self.VHELIO, np.int8(self.apVal.get()),
+    def saveLine(self,qual):
+        self.FOUT.write("%s %s %f %f %d %d %.4f %.6f %.6f %.6f %.6f %.4f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n"%
+                            (self.FILENAME, self.NAME, self.HJD, self.VHELIO, qual, np.int8(self.apVal.get()),
                             np.float32(self.centroid.get()), np.float32(self.eqwidth.get()),
                             np.float32(self.calceqw.get()),
                             np.float32(self.inteqw.get()), np.float32(self.inteqwErr.get()),

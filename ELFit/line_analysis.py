@@ -50,27 +50,40 @@ def lineMeasure(wave,flux,sigma,LWIN,HWIN,CONT,BOT):
 
 
 def fitLine(gcon, gdep, gmean, gstd, wave, flux, sigma):
-    model_line = models.Const1D(gcon) + models.Gaussian1D(amplitude=gdep, mean=gmean, stddev=gstd)
-    warnings.simplefilter('ignore', category=AstropyWarning)
-    fitter_line = fitting.LevMarLSQFitter()
-    bestfit_line = fitter_line(model_line,wave,flux,weights=1./sigma)
-    #with warnings.catch_warnings():
-    #    warnings.simplefilter('ignore', category=AstropyWarning)
-    #    bestfit_line = fitter_line(model_line,wave,flux,weights=1./sigma)
-    try:
-        cov_diag = np.diag(fitter_line.fit_info['param_cov'])
-    except:
-        cov_diag = np.empty(4)*np.nan
+    fmean = 0.
+    fmeanErr = 0.
+    fdepth = 0.
+    fdepthErr = 0.
+    fwidth = 0.
+    fwidthErr = 0.
+    fconti = 0.
+    fcontiErr = 0.
+    residual = 9999.
+    for i in range(3):
+        for j in range(3):
+            for k in range(3):
+                for a in range(3):
+                    model_line = models.Const1D(gcon+(i-1)*0.1) + models.Gaussian1D(amplitude=gdep+(j-1)*0.1, mean=gmean+(k-1)*0.1, stddev=gstd+(a-1)*0.1)
+                    warnings.simplefilter('ignore', category=AstropyWarning)
+                    fitter_line = fitting.LevMarLSQFitter()
+                    bestfit_line = fitter_line(model_line,wave,flux,weights=1./sigma)
+                    tmp = np.sum( sigma*(flux - bestfit_line(wave))**2 )
+                    #print(gcon+(i-1)*0.1,gdep+(j-1)*0.1,gmean+(k-1)*0.1,gstd+(a-1)*0.1,tmp)
+                    if(tmp < residual):
+                        try:
+                            cov_diag = np.diag(fitter_line.fit_info['param_cov'])
+                        except:
+                            cov_diag = np.empty(4)*np.nan
 
-    fmean     = bestfit_line.mean_1.value
-    fmeanErr  = np.sqrt(cov_diag[2])
-    fdepth    = bestfit_line.amplitude_1.value
-    fdepthErr = np.sqrt(cov_diag[1])
-    fwidth    = bestfit_line.stddev_1.value
-    fwidthErr = np.sqrt(cov_diag[3])
-    fconti    = bestfit_line.amplitude_0.value
-    fcontiErr = np.sqrt(cov_diag[0])
-
-    residual = np.sum( sigma*(flux - bestfit_line(wave))**2 )
+                        fmean     = bestfit_line.mean_1.value
+                        fmeanErr  = np.sqrt(cov_diag[2])
+                        fdepth    = bestfit_line.amplitude_1.value
+                        fdepthErr = np.sqrt(cov_diag[1])
+                        fwidth    = bestfit_line.stddev_1.value
+                        fwidthErr = np.sqrt(cov_diag[3])
+                        fconti    = bestfit_line.amplitude_0.value
+                        fcontiErr = np.sqrt(cov_diag[0])
+                        residual = tmp
+                        #residual = np.sum( sigma*(flux - bestfit_line(wave))**2 )
 
     return fmean, fmeanErr, fdepth, fdepthErr, fwidth, fwidthErr, fconti, fcontiErr, residual
