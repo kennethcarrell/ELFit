@@ -36,6 +36,10 @@ class LineFitGUI:
         self.fwhm = 0.
         self.fwem = 0.
         self.saveType = tkinter.StringVar()
+        self.fileType = tkinter.StringVar()
+        self.listNames = []
+        self.listCounter = 0
+        self.isList = False
         self.apStart = np.zeros(_NUMAPS_)
         self.apStep = np.zeros(_NUMAPS_*2+1)
         self.WAVE = np.zeros((_NUMAPS_,_NPIXELS_))
@@ -51,7 +55,10 @@ class LineFitGUI:
         self.plotFrame = tkinter.Frame(self.master)
         self.aperFrame = tkinter.Frame(self.master)
 
-        self.fNameButton = tkinter.Button(self.plotFrame, text="Open File", fg="blue", command=self.retrieveInput)
+        self.openOptions = ["Open Options", "Open File", "Open List"]
+        self.fileType.set(self.openOptions[0])
+        self.fNameButton = tkinter.OptionMenu(self.plotFrame, self.fileType, *self.openOptions, command=self.retrieveInput)
+        self.fNameButton['menu'].insert_separator(1)
         self.fNameButton.grid(row = 0, column = 0)
 
         self.sNAMELabel = tkinter.Label(self.plotFrame, text="Name: ")
@@ -82,14 +89,14 @@ class LineFitGUI:
         self.aperture.grid(row = 3, column = 4)
 
         self.lowwindowLabel = tkinter.Label(self.plotFrame, text="Low Window:")
-        self.lowwindowLabel.grid(row = 3, column = 0)
+        self.lowwindowLabel.grid(row = 3, column = 0, sticky=tkinter.E)
         self.lowwindow = tkinter.Entry(self.plotFrame, width=10)
-        self.lowwindow.grid(row = 3, column = 1)
+        self.lowwindow.grid(row = 3, column = 1, sticky=tkinter.W)
 
         self.highwindowLabel = tkinter.Label(self.plotFrame, text="High Window:")
-        self.highwindowLabel.grid(row = 3, column = 2)
+        self.highwindowLabel.grid(row = 3, column = 2, sticky=tkinter.E)
         self.highwindow = tkinter.Entry(self.plotFrame, width=10)
-        self.highwindow.grid(row = 3, column = 3)
+        self.highwindow.grid(row = 3, column = 3, sticky=tkinter.W)
 
         tkinter.ttk.Separator(self.plotFrame, orient='horizontal').grid(row=4,column=0,columnspan=5,sticky='ew')
 
@@ -181,30 +188,35 @@ class LineFitGUI:
         self.canLine.get_tk_widget().grid(row = 14, column = 0, columnspan=5)
 
         self.lowRangeLabel = tkinter.Label(self.plotFrame, text="Plot Left:")
-        self.lowRangeLabel.grid(row = 15, column = 0)
+        self.lowRangeLabel.grid(row = 15, column = 0, sticky=tkinter.E)
         self.lowRange = tkinter.Entry(self.plotFrame,width=10)
-        self.lowRange.grid(row = 15, column = 1)
+        self.lowRange.grid(row = 15, column = 1, sticky=tkinter.W)
 
         self.highRangeLabel = tkinter.Label(self.plotFrame, text="Plot Right:")
-        self.highRangeLabel.grid(row = 15, column = 2)
+        self.highRangeLabel.grid(row = 15, column = 2, sticky=tkinter.E)
         self.highRange = tkinter.Entry(self.plotFrame,width=10)
-        self.highRange.grid(row = 15, column = 3)
+        self.highRange.grid(row = 15, column = 3, sticky=tkinter.W)
 
         self.plotMinLabel = tkinter.Label(self.plotFrame, text="Plot Min:")
-        self.plotMinLabel.grid(row = 16, column = 0)
+        self.plotMinLabel.grid(row = 16, column = 0, sticky=tkinter.E)
         self.plotMin = tkinter.Entry(self.plotFrame,width=10)
-        self.plotMin.grid(row = 16, column = 1)
+        self.plotMin.grid(row = 16, column = 1, sticky=tkinter.W)
 
         self.plotMaxLabel = tkinter.Label(self.plotFrame, text="Plot Max:")
-        self.plotMaxLabel.grid(row = 16, column = 2)
+        self.plotMaxLabel.grid(row = 16, column = 2, sticky=tkinter.E)
         self.plotMax = tkinter.Entry(self.plotFrame,width=10)
-        self.plotMax.grid(row = 16, column = 3)
+        self.plotMax.grid(row = 16, column = 3, sticky=tkinter.W)
 
         self.residualLabel = tkinter.Label(self.plotFrame, text="Residual:")
         self.residualLabel.grid(row = 15, column = 4)
 
         self.savePlotButton = tkinter.Button(self.plotFrame, text="Save Plot", fg="green", command=self.savePlot)
         self.savePlotButton.grid(row = 16, column = 4)
+
+        self.notesLabel = tkinter.Label(self.plotFrame, text="Notes:")
+        self.notesLabel.grid(row = 17, column = 0, sticky=tkinter.E)
+        self.notesEntry = tkinter.Entry(self.plotFrame, width=55)
+        self.notesEntry.grid(row = 17, column = 1, columnspan = 4, sticky=tkinter.W)
 
         self.plotFrame.pack(side="left")
         self.aperlistbox = tkinter.Listbox(self.master,fg="gray",font="TkFixedFont",width=30)
@@ -213,9 +225,32 @@ class LineFitGUI:
 
 
     ## Open an input file
-    def retrieveInput(self):
-        # open a dialog to get file
-        fname = tkinter.filedialog.askopenfilename()
+    def retrieveInput(self,fileType):
+        fname = ""
+        if(fileType == "Open File"):
+            # open a dialog to get file
+            fname = tkinter.filedialog.askopenfilename()
+            self.isList = False
+            self.fileType.set(self.openOptions[0])
+        elif(fileType == "Open List"):
+            lname = tkinter.filedialog.askopenfilename()
+            with open(lname) as f:
+                self.listNames = f.readlines()
+            self.listNames = [x.strip() for x in self.listNames]
+            self.listCounter = 0
+            self.isList = True
+            self.fileType.set(self.openOptions[0])
+            fname = self.listNames[self.listCounter]
+        elif(fileType == "NEXT"):
+            if(self.listCounter == len(self.listNames)-1):
+                self.fileType.set(self.openOptions[0])
+                return
+            self.listCounter += 1
+            fname = self.listNames[self.listCounter]
+        else:
+            self.fileType.set(self.openOptions[0])
+            return
+
         specin = fits.open(fname)
         endParse = fname.split("/")
         self.FILENAME = endParse[len(endParse)-1].split(".")[0]
@@ -441,7 +476,7 @@ class LineFitGUI:
 
     # put output in a file
     def saveLine(self,qual):
-        self.FOUT.write("%s %s %f %f %d %d %.4f %.6f %.6f %.6f %.6f %.4f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n"%
+        self.FOUT.write("%s %s %f %f %d %d %.4f %.6f %.6f %.6f %.6f %.4f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %s\n"%
                             (self.FILENAME, self.NAME, self.HJD, self.VHELIO, qual, np.int8(self.apVal.get()),
                             np.float32(self.centroid.get()), np.float32(self.eqwidth.get()),
                             np.float32(self.calceqw.get()),
@@ -455,9 +490,16 @@ class LineFitGUI:
                             self.fwem, self.emax,
                             np.float32(self.leftFWHM.get()), np.float32(self.rightFWHM.get()),
                             np.float32(self.leftFWEM.get()), np.float32(self.rightFWEM.get()),
-                            self.residual))
+                            self.residual, self.notesEntry.get()))
         self.FOUT.flush()
         os.fsync(self.FOUT.fileno())
+        self.notesEntry.delete(0, tkinter.END)
+        if(self.isList):
+            plt.title("%s %s"%(self.FILENAME,self.NAME))
+            self.figLine.savefig("%s.png"%(self.FILENAME))
+            plt.title("")
+            self.retrieveInput("NEXT")
+
 
     def savePlot(self):
         fname = tkinter.filedialog.asksaveasfilename()
