@@ -17,9 +17,14 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 #warnings.simplefilter('ignore', category=AstropyWarning)
 from ELFit.line_analysis import *
 
+#_MAXAPS_ = 54
+#_MAXPIX_ = 2048
+## Values for the 82" SES
+_NAPS82_ = 17
+_NPIX82_ = 1198
 ## Values for the 107" Coude
-_NUMAPS_ = 54
-_NPIXELS_ = 2048
+_NAPS107_ = 54
+_NPIX107_ = 2048
 
 class LineFitGUI:
     # initialize GUI window
@@ -40,11 +45,14 @@ class LineFitGUI:
         self.listNames = []
         self.listCounter = 0
         self.isList = False
-        self.apStart = np.zeros(_NUMAPS_)
-        self.apStep = np.zeros(_NUMAPS_*2+1)
-        self.WAVE = np.zeros((_NUMAPS_,_NPIXELS_))
-        self.FLUX = np.zeros((_NUMAPS_,_NPIXELS_))
-        self.SIGMA = np.zeros((_NUMAPS_,_NPIXELS_))
+        self.NAPS = 0
+        self.NPIX = 0
+        self.NWAT = 0
+        self.apStart = []#np.zeros(_MAXAPS_)
+        self.apStep = []#np.zeros(_MAXAPS_*2+1)
+        self.WAVE = []#np.zeros((_MAXAPS_,_MAXPIX_))
+        self.FLUX = []#np.zeros((_MAXAPS_,_MAXPIX_))
+        self.SIGMA = []#np.zeros((_MAXAPS_,_MAXPIX_))
         self.CONTWAVE = []
         self.CONTFLUX = []
         self.CONTSIGMA = []
@@ -82,7 +90,7 @@ class LineFitGUI:
 
         self.appLabel = tkinter.Label(self.plotFrame, text="Aperture")
         self.appLabel.grid(row = 2, column = 4)
-        self.apertures = [*range(_NUMAPS_)]
+        self.apertures = [0,0]#[*range(_NUMAPS_)]
         self.apVal = tkinter.IntVar(self.plotFrame)
         self.apVal.set(self.apertures[0])
         self.aperture = tkinter.OptionMenu(self.plotFrame,self.apVal,*self.apertures)
@@ -254,35 +262,58 @@ class LineFitGUI:
         specin = fits.open(fname)
         endParse = fname.split("/")
         self.FILENAME = endParse[len(endParse)-1].split(".")[0]
-        # get info from header
+        # get telescope info from header
+        if(specin[0].header['TELESCOP'] == "mcd107x"):
+            self.NAPS = _NAPS107_
+            self.NPIX = _NPIX107_
+            self.NWAT = 61
+        elif(specin[0].header['TELESCOP'] == "mcd82x"):
+            self.NAPS = _NAPS82_
+            self.NPIX = _NPIX82_
+            self.NWAT = 20
+        else:
+            print("UNKNOWN TELESCOPE")
+            return 0
+        OLDAP = self.apVal.get()
+        self.apertures = [*range(self.NAPS)]
+        self.aperture['menu'].delete(0, 'end')
+        for addopt in range(1,self.NAPS+1):
+            self.aperture['menu'].add_command(label=addopt, command=lambda v=addopt: self.apVal.set(v))
+        self.apVal.set(OLDAP)
+        # get other info from header
         self.NAME = specin[0].header['OBJECT']
         self.sNAMELabel['text'] = "Name: %s\n%s"%(self.NAME,self.FILENAME)
         self.HJD = specin[0].header['HJD']
         self.VHELIO = specin[0].header['VHELIO']
         # get the wavelength solution
         soln = ''
-        for i in range(1,61):
+        for i in range(1,self.NWAT):
             soln += specin[0].header['WAT2_0%02d'%(i)]
             if(len(specin[0].header['WAT2_0%02d'%(i)]) == 67):
                 soln += ' '
         wsolarr = soln.split('"')
+        # setup variables
+        self.apStart = np.zeros(self.NAPS)
+        self.apStep = np.zeros(self.NAPS*2+1)
+        self.WAVE = np.zeros((self.NAPS,self.NPIX))
         # get data
         self.FLUX = specin[0].data[0]
         self.SIGMA = specin[0].data[2]
         # fill in wavelength values
         iapp = 0
-        for i in range(1,109,2):
+        for i in range(1,self.NAPS*2+1,2):
             self.apStart[iapp] = wsolarr[i].split()[3]
             self.apStep[iapp] = wsolarr[i].split()[4]
-            for j in range(_NPIXELS_):
+            for j in range(self.NPIX):
                 self.WAVE[iapp][j] = self.apStart[iapp] + j*self.apStep[iapp]
             iapp += 1
         specin.close()
         # OK to plot now
         self.updateButton['state'] = 'normal'
         self.fitButton['state'] = 'normal'
+        self.aperlistbox['state'] = 'normal'
         self.aperlistbox.delete(0,tkinter.END)
-        for i in range(_NUMAPS_):
+        for i in range(self.NAPS):
             self.aperlistbox.insert(tkinter.END,"%2d: %10.5f -> %10.5f"%(i+1,self.WAVE[i][0],self.WAVE[i][-1]))
         self.aperlistbox['state'] = 'disable'
 
