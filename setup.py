@@ -6,7 +6,7 @@ def readme():
 
 setup(
     name='ELFit',
-    version='v0.4',
+    version='v0.5',
     description='Echelle Line Fitting GUI',
     python_requires='==3.8.*',
     long_description=readme(),
