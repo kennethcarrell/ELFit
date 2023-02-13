@@ -263,7 +263,11 @@ class LineFitGUI:
         endParse = fname.split("/")
         self.FILENAME = endParse[len(endParse)-1].split(".")[0]
         # get telescope info from header
-        if(specin[0].header['TELESCOP'] == "mcd107x"):
+        if(specin[0].header['INSTR'] == 'Apotspec'):
+            self.NAPS = 1
+            self.NPIX = specin[0].header['NAXIS1']
+            self.NWAT = 0
+        elif(specin[0].header['TELESCOP'] == "mcd107x"):
             self.NAPS = _NAPS107_
             self.NPIX = _NPIX107_
             self.NWAT = 61
@@ -281,32 +285,50 @@ class LineFitGUI:
             self.aperture['menu'].add_command(label=addopt, command=lambda v=addopt: self.apVal.set(v))
         self.apVal.set(OLDAP)
         # get other info from header
-        self.NAME = specin[0].header['OBJECT']
+        try:
+            self.NAME = specin[0].header['OBJECT']
+        except:
+            try:
+                self.NAME = specin[0].header['OBJNAME']
+            except:
+                self.NAME = 'Unknown'
         self.sNAMELabel['text'] = "Name: %s\n%s"%(self.NAME,self.FILENAME)
-        self.HJD = specin[0].header['HJD']
-        self.VHELIO = specin[0].header['VHELIO']
-        # get the wavelength solution
-        soln = ''
-        for i in range(1,self.NWAT):
-            soln += specin[0].header['WAT2_0%02d'%(i)]
-            if(len(specin[0].header['WAT2_0%02d'%(i)]) == 67):
-                soln += ' '
-        wsolarr = soln.split('"')
-        # setup variables
-        self.apStart = np.zeros(self.NAPS)
-        self.apStep = np.zeros(self.NAPS*2+1)
-        self.WAVE = np.zeros((self.NAPS,self.NPIX))
-        # get data
-        self.FLUX = specin[0].data[0]
-        self.SIGMA = specin[0].data[2]
-        # fill in wavelength values
-        iapp = 0
-        for i in range(1,self.NAPS*2+1,2):
-            self.apStart[iapp] = wsolarr[i].split()[3]
-            self.apStep[iapp] = wsolarr[i].split()[4]
-            for j in range(self.NPIX):
-                self.WAVE[iapp][j] = self.apStart[iapp] + j*self.apStep[iapp]
-            iapp += 1
+        try:
+            self.HJD = specin[0].header['HJD']
+        except:
+            self.HJD = 0
+        try:
+            self.VHELIO = specin[0].header['VHELIO']
+        except:
+            self.VHELIO = 0
+        if(self.NWAT>0):
+            # get the wavelength solution
+            soln = ''
+            for i in range(1,self.NWAT):
+                soln += specin[0].header['WAT2_0%02d'%(i)]
+                if(len(specin[0].header['WAT2_0%02d'%(i)]) == 67):
+                    soln += ' '
+            wsolarr = soln.split('"')
+            # setup variables
+            self.apStart = np.zeros(self.NAPS)
+            self.apStep = np.zeros(self.NAPS*2+1)
+            self.WAVE = np.zeros((self.NAPS,self.NPIX))
+            # get data
+            self.FLUX = specin[0].data[0]
+            self.SIGMA = specin[0].data[2]
+            # fill in wavelength values
+            iapp = 0
+            for i in range(1,self.NAPS*2+1,2):
+                self.apStart[iapp] = wsolarr[i].split()[3]
+                self.apStep[iapp] = wsolarr[i].split()[4]
+                for j in range(self.NPIX):
+                    self.WAVE[iapp][j] = self.apStart[iapp] + j*self.apStep[iapp]
+                iapp += 1
+        else:
+            self.WAVE = np.zeros((self.NAPS,self.NPIX))
+            self.WAVE[0] = specin[0].data[0]
+            self.FLUX = specin[0].data[1]
+            self.SIGMA = specin[0].data[2]
         specin.close()
         # OK to plot now
         self.updateButton['state'] = 'normal'

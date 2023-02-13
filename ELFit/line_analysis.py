@@ -16,7 +16,7 @@ def getBkgr(wave,flux,sigma):
     return fit_generic_continuum(spec)
 
 
-def lineMeasure(wave,flux,sigma,LWIN,HWIN,CONT,BOT):
+def lineMeasure(wave,flux,sigma,LWIN,HWIN,CONT,BOT,skewkurt=True):
     # find centroid and equivalent width in window
     specregion = SpectralRegion(LWIN*u.AA, HWIN*u.AA)
 
@@ -37,18 +37,30 @@ def lineMeasure(wave,flux,sigma,LWIN,HWIN,CONT,BOT):
     elft = np.interp(emax,np.flip(flux[lft_msk]),np.flip(wave[lft_msk]))
     erght = np.interp(emax,flux[rght_msk],wave[rght_msk])
     fwem = erght - elft
-    vskew = []
-    vkurt = []
-    for i in range(5):
-        xran = []
-        while(len(xran)<10000):
-            testx = uniform(LWIN,HWIN)
-            testy = uniform(BOT,CONT)
-            if(testy > np.interp(testx,wave,flux)):
-                xran.append(testx)
-        vskew.append(skew(xran))
-        vkurt.append(kurtosis(xran))
-    return center,eqwidth,halfmax,fwhm,(center-left)/fwhm,(right-center)/fwhm,emax,fwem,(center-elft)/fwem,(erght-center)/fwem,np.mean(vskew),np.std(vskew),np.mean(vkurt),np.std(vkurt)
+    if(skewkurt):
+        vskew = []
+        vkurt = []
+        for i in range(5):
+            xran = []
+            longcounter = 0
+            while(len(xran)<10000 and longcounter<1000000):
+                testx = uniform(LWIN,HWIN)
+                testy = uniform(BOT,CONT)
+                if(testy > np.interp(testx,wave,flux)):
+                    xran.append(testx)
+                longcounter += 1
+            vskew.append(skew(xran))
+            vkurt.append(kurtosis(xran))
+        mskew = np.mean(vskew)
+        sskew = np.std(vskew)
+        mkurt = np.mean(vkurt)
+        skurt = np.std(vkurt)
+    else:
+        mskew = np.nan
+        sskew = np.nan
+        mkurt = np.nan
+        skurt = np.nan
+    return center,eqwidth,halfmax,fwhm,(center-left)/fwhm,(right-center)/fwhm,emax,fwem,(center-elft)/fwem,(erght-center)/fwem,mskew,sskew,mkurt,skurt
 
 
 
