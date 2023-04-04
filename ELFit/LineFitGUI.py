@@ -191,7 +191,7 @@ class LineFitGUI:
         self.rightFWEM = tkinter.Entry(self.plotFrame, width=10)
         self.rightFWEM.grid(row = 13, column = 4)
 
-        self.figLine, self.figLAx = plt.subplots(figsize=(8,6))
+        self.figLine, self.figLAx = plt.subplots(figsize=(6,4))#figsize=(8,6))
         self.canLine = FigureCanvasTkAgg(self.figLine, self.plotFrame)
         self.canLine.get_tk_widget().grid(row = 14, column = 0, columnspan=5)
 
@@ -263,14 +263,15 @@ class LineFitGUI:
         endParse = fname.split("/")
         self.FILENAME = endParse[len(endParse)-1].split(".")[0]
         # get telescope info from header
-        if(specin[0].header['INSTR'] == 'Apotspec'):
-            self.NAPS = 1
-            self.NPIX = specin[0].header['NAXIS1']
-            self.NWAT = 0
-        elif(specin[0].header['TELESCOP'] == "mcd107x"):
-            self.NAPS = _NAPS107_
-            self.NPIX = _NPIX107_
-            self.NWAT = 61
+        # # if(specin[0].header['INSTR'] == 'Apotspec'):
+        # #     self.NAPS = 1
+        # #     self.NPIX = specin[0].header['NAXIS1']
+        # #     self.NWAT = 0
+        # elif(specin[0].header['TELESCOP'] == "mcd107x"):
+        if(specin[0].header['TELESCOP'] == "mcd107x" or specin[0].header['TELESCOP'] == 'hjst'):
+            self.NAPS = specin[0].header['NAXIS2']#_NAPS107_
+            self.NPIX = specin[0].header['NAXIS1']#_NPIX107_
+            self.NWAT = len(specin[0].header['WAT2*'])+1#61
         elif(specin[0].header['TELESCOP'] == "mcd82x"):
             self.NAPS = _NAPS82_
             self.NPIX = _NPIX82_
@@ -315,7 +316,8 @@ class LineFitGUI:
             self.WAVE = np.zeros((self.NAPS,self.NPIX))
             # get data
             self.FLUX = specin[0].data[0]
-            self.SIGMA = specin[0].data[2]
+            #self.SIGMA = specin[0].data[2]
+            self.SIGMA = specin[0].data[1]
             # fill in wavelength values
             iapp = 0
             for i in range(1,self.NAPS*2+1,2):
@@ -326,9 +328,11 @@ class LineFitGUI:
                 iapp += 1
         else:
             self.WAVE = np.zeros((self.NAPS,self.NPIX))
-            self.WAVE[0] = specin[0].data[0]
-            self.FLUX = specin[0].data[1]
-            self.SIGMA = specin[0].data[2]
+            self.WAVE[0] = specin[0].data[0]*10000.
+            self.FLUX = np.zeros((self.NAPS,self.NPIX))
+            self.FLUX[0] = specin[0].data[1]
+            self.SIGMA = np.zeros((self.NAPS,self.NPIX))
+            self.SIGMA[0] = specin[0].data[2]
         specin.close()
         # OK to plot now
         self.updateButton['state'] = 'normal'
@@ -382,7 +386,10 @@ class LineFitGUI:
         self.contiFit()
 
         # fit line with a Gaussian profile
-        fmean, fmeanErr, fdepth, fdepthErr, fwidth, fwidthErr, fconti, fcontiErr, self.residual = fitLine(CONTI,DEPTH,MEAN,STDDEV,self.CONTWAVE,self.CONTFLUX,self.CONTSIGMA)
+        try:
+            fmean, fmeanErr, fdepth, fdepthErr, fwidth, fwidthErr, fconti, fcontiErr, self.residual = fitLine(CONTI,DEPTH,MEAN,STDDEV,self.CONTWAVE,self.CONTFLUX,self.CONTSIGMA)
+        except:
+            fmean = fmeanErr = fdepth = fdepthErr = fwidth = fwidthErr = fconti = fcontiErr = self.residual = 0.
         # update values in boxes
         self.fitMean.delete(0, tkinter.END)
         self.fitMean.insert(0, "%.4f"%(fmean))
@@ -451,7 +458,7 @@ class LineFitGUI:
         plt.close('all')
         self.canLine.get_tk_widget().grid_forget()
         self.figLine.clear()
-        self.figLine, self.figLAx = plt.subplots(figsize=(8,6))
+        self.figLine, self.figLAx = plt.subplots(figsize=(6,4))#figsize=(8,6))
         # get info from boxes
         APER = self.apVal.get() - 1
         try:
